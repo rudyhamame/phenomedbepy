@@ -262,6 +262,20 @@ def _pick_display_lead(canonical_lines):
     return best_name, canonical_lines[best_index]
 
 
+def _build_lead_traces(canonical_lines):
+    lead_traces = {}
+    for lead_index, lead_name in enumerate(LEAD_NAMES[: canonical_lines.shape[0]]):
+        line = canonical_lines[lead_index]
+        valid = np.isfinite(line)
+        if not np.any(valid):
+            continue
+        normalized = _normalize_trace(line.astype(np.float32))
+        if normalized.size == 0:
+            continue
+        lead_traces[lead_name] = _downsample_trace(normalized)
+    return lead_traces
+
+
 def _build_measurements(layout_name, layout_cost, lines, pixel_spacing):
     measurements = [
         {
@@ -354,10 +368,11 @@ def build_analysis(payload):
         )
 
     valid_mask = np.isfinite(canonical_lines)
+    lead_traces = _build_lead_traces(canonical_lines)
     valid_leads = [
         LEAD_NAMES[index]
         for index in range(min(canonical_lines.shape[0], len(LEAD_NAMES)))
-        if np.mean(valid_mask[index]) > 0.2
+        if np.mean(valid_mask[index]) > 0.2 and LEAD_NAMES[index] in lead_traces
     ]
     layout_name = str(result.get("layout_name") or "unknown")
     layout_cost = float(signal.get("layout_matching_cost") or 0.0)
@@ -419,6 +434,7 @@ def build_analysis(payload):
         "measurements": _build_measurements(layout_name, layout_cost, canonical_lines, pixel_spacing),
         "waveformPoints": waveform_points,
         "traceSamples": _downsample_trace(normalized_trace),
+        "leadTraces": lead_traces,
         "leadFindings": lead_findings,
         "rhythmFeatures": rhythm_features,
         "trends": {
