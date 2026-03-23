@@ -126,6 +126,17 @@ def encode_preview_image(rgb):
     return base64.b64encode(output.getvalue()).decode("ascii")
 
 
+def downsample_trace(normalized_trace, max_points=900):
+    trace = np.asarray(normalized_trace, dtype=np.float32)
+    if trace.size == 0:
+        return []
+    if trace.size <= max_points:
+        return [round(float(value), 4) for value in trace]
+
+    indices = np.linspace(0, trace.size - 1, max_points).astype(np.int32)
+    return [round(float(trace[index]), 4) for index in indices]
+
+
 def build_analysis(payload):
     base64_data = str(payload.get("base64Data") or "").strip()
     if not base64_data:
@@ -311,6 +322,7 @@ def build_analysis(payload):
         },
         "extractedText": [observed_text] if observed_text else [],
         "nonDiagnosticNotice": "Observable ECG findings only. This local digitizer extracts graph behavior and does not provide a diagnosis.",
+        "traceSamples": downsample_trace(normalized_trace),
         "previewImageBase64": encode_preview_image(rgb),
         "previewImageMimeType": "image/png",
         "rotationApplied": oriented["label"],
