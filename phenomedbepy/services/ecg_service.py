@@ -4,12 +4,29 @@ from .pdf_to_image import render_pdf_page
 LOCAL_METHOD = OPEN_ECG_METHOD
 
 
+def _build_toolchain_error_message(toolchain):
+    missing_modules = toolchain.get("missingModules") or []
+    missing_files = toolchain.get("missingFiles") or []
+    init_error = str(toolchain.get("initError") or "").strip()
+
+    details = []
+    if missing_modules:
+        details.append(f"Missing Python modules: {', '.join(missing_modules)}")
+    if missing_files:
+        details.append(f"Missing model/config files: {', '.join(missing_files)}")
+    if init_error:
+        details.append(f"Initialization error: {init_error}")
+
+    if not details:
+        details.append("The ECG toolchain reported degraded status for an unspecified reason.")
+
+    return "Local ECG toolchain is unavailable. " + " ".join(details)
+
+
 def analyze_ecg_payload(payload):
     toolchain = build_toolchain_status()
     if toolchain["status"] != "healthy":
-        raise ValueError(
-            f"Local ECG toolchain is unavailable. Missing Python modules: {', '.join(toolchain['missingModules'])}."
-        )
+        raise ValueError(_build_toolchain_error_message(toolchain))
 
     acquisition_note = str(payload.get("acquisitionNote") or "").strip()
     observed_text = str(payload.get("observedText") or "").strip()
