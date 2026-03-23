@@ -17,17 +17,47 @@ _INFERENCE_WRAPPER = None
 _INIT_ERROR = None
 
 
-def _vendor_repo_path():
-    service_root = Path(__file__).resolve().parents[2]
-    workspace_root = Path(__file__).resolve().parents[3]
-    candidates = [
-        service_root / "vendor" / "Open-ECG-Digitizer",
-        workspace_root / "vendor" / "Open-ECG-Digitizer",
+def _required_vendor_files(vendor_repo):
+    return [
+        vendor_repo / "src" / "config" / "inference_wrapper.yml",
+        vendor_repo / "weights" / "unet_weights_07072025.pt",
+        vendor_repo / "weights" / "lead_name_unet_weights_07072025.pt",
     ]
+
+
+def _has_required_vendor_files(vendor_repo):
+    return all(path.exists() for path in _required_vendor_files(vendor_repo))
+
+
+def _vendor_repo_path():
+    env_override = os.environ.get("OPEN_ECG_DIGITIZER_DIR")
+    candidates = []
+
+    if env_override:
+        candidates.append(Path(env_override).expanduser().resolve())
+
+    current_file = Path(__file__).resolve()
+    for ancestor in current_file.parents:
+        candidates.append(ancestor / "vendor" / "Open-ECG-Digitizer")
+
+    unique_candidates = []
+    seen = set()
     for candidate in candidates:
+        candidate_str = str(candidate)
+        if candidate_str in seen:
+            continue
+        seen.add(candidate_str)
+        unique_candidates.append(candidate)
+
+    for candidate in unique_candidates:
+        if _has_required_vendor_files(candidate):
+            return candidate
+
+    for candidate in unique_candidates:
         if candidate.exists():
             return candidate
-    return candidates[0]
+
+    return unique_candidates[0]
 
 
 def _ensure_matplotlib_cache_dir():
@@ -132,11 +162,7 @@ def build_toolchain_status():
         missing.append("torch-tps")
 
     vendor_repo = _vendor_repo_path()
-    required_files = [
-        vendor_repo / "src" / "config" / "inference_wrapper.yml",
-        vendor_repo / "weights" / "unet_weights_07072025.pt",
-        vendor_repo / "weights" / "lead_name_unet_weights_07072025.pt",
-    ]
+    required_files = _required_vendor_files(vendor_repo)
     missing_files = [str(path.name) for path in required_files if not path.exists()]
 
     init_error = None
