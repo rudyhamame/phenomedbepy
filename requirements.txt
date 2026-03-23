@@ -4,3 +4,13 @@ opencv-python-headless
 numpy
 scipy
 pypdfium2
+matplotlib
+networkx
+PyYAML
+scikit-image
+scikit-learn
+torch
+torch-tps
+torchaudio
+torchvision
+yacs

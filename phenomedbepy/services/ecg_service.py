@@ -1,41 +1,7 @@
-from .digitize import build_analysis
+from .open_ecg_digitizer import OPEN_ECG_METHOD, build_analysis, build_toolchain_status
 from .pdf_to_image import render_pdf_page
 
-LOCAL_METHOD = "deterministic_digitizer"
-
-
-def build_toolchain_status():
-    missing = []
-    try:
-        import PIL  # noqa: F401
-    except Exception:
-        missing.append("PIL")
-
-    try:
-        import cv2  # noqa: F401
-    except Exception:
-        missing.append("cv2")
-
-    try:
-        import numpy  # noqa: F401
-    except Exception:
-        missing.append("numpy")
-
-    try:
-        import scipy  # noqa: F401
-    except Exception:
-        missing.append("scipy")
-
-    try:
-        import pypdfium2  # noqa: F401
-    except Exception:
-        missing.append("pypdfium2")
-
-    return {
-        "status": "healthy" if not missing else "degraded",
-        "python": "ok",
-        "missingModules": missing,
-    }
+LOCAL_METHOD = OPEN_ECG_METHOD
 
 
 def analyze_ecg_payload(payload):
@@ -71,12 +37,12 @@ def analyze_ecg_payload(payload):
         )
         analysis = build_analysis(
             {
-                "base64Data": rasterized["base64Data"],
-                "acquisitionNote": acquisition_note
-                or f"PDF ECG page {rasterized['selectedPage']} rasterized locally before digitization.",
-                "observedText": observed_text,
-            }
-        )
+            "base64Data": rasterized["base64Data"],
+            "acquisitionNote": acquisition_note
+                or f"PDF ECG page {rasterized['selectedPage']} rasterized before Open-ECG-Digitizer reconstruction.",
+            "observedText": observed_text,
+        }
+    )
         return {
             "mode": "non-diagnostic",
             "sourceType": "pdf",

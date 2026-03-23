@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from ..services.ecg_service import analyze_ecg_payload, build_toolchain_status
+from ..services.ecg_service import LOCAL_METHOD, analyze_ecg_payload, build_toolchain_status
 
 ecg_blueprint = Blueprint("ecg", __name__)
 
@@ -12,7 +12,7 @@ def ecg_index():
             "name": "PhenoMed ECG Python API",
             "status": "ready",
             "mode": "non-diagnostic",
-            "method": "deterministic_digitizer",
+            "method": LOCAL_METHOD,
         }
     )
 
@@ -25,7 +25,7 @@ def ecg_health():
             {
                 "status": toolchain["status"],
                 "mode": "local-only",
-                "method": "deterministic_digitizer",
+                "method": LOCAL_METHOD,
                 "toolchain": toolchain,
             }
         ),
