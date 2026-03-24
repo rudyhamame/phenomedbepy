@@ -25,13 +25,40 @@ def _run_job(job_id, payload):
         job = _JOBS.get(job_id)
         if not job:
             return
+        if job.get("cancelRequested"):
+            job["status"] = "cancelled"
+            job["progress"] = 1.0
+            job["message"] = "ECG analysis cancelled."
+            job["updatedAt"] = _timestamp()
+            job["completedAt"] = _timestamp()
+            return
         job["status"] = "running"
         job["progress"] = 0.1
         job["message"] = "ECG analysis is running."
         job["updatedAt"] = _timestamp()
 
     try:
-        result = analyze_ecg_payload(payload)
+        def _progress_callback(update):
+            with _JOBS_LOCK:
+                job = _JOBS.get(job_id)
+                if not job:
+                    return
+                if job.get("cancelRequested"):
+                    job["status"] = "cancelled"
+                    job["progress"] = 1.0
+                    job["message"] = "ECG analysis cancelled."
+                    job["updatedAt"] = _timestamp()
+                    job["completedAt"] = _timestamp()
+                    raise RuntimeError("__ECG_JOB_CANCELLED__")
+                job["status"] = str(update.get("status") or job["status"])
+                job["progress"] = float(update.get("progress") or job["progress"])
+                job["message"] = str(update.get("message") or job["message"])
+                partial_result = update.get("partialResult")
+                if partial_result is not None:
+                    job["result"] = partial_result
+                job["updatedAt"] = _timestamp()
+
+        result = analyze_ecg_payload(payload, progress_callback=_progress_callback)
         with _JOBS_LOCK:
             job = _JOBS.get(job_id)
             if not job:
@@ -46,6 +73,13 @@ def _run_job(job_id, payload):
         with _JOBS_LOCK:
             job = _JOBS.get(job_id)
             if not job:
+                return
+            if job.get("cancelRequested") or str(exc) == "__ECG_JOB_CANCELLED__":
+                job["status"] = "cancelled"
+                job["progress"] = 1.0
+                job["message"] = "ECG analysis cancelled."
+                job["updatedAt"] = _timestamp()
+                job["completedAt"] = _timestamp()
                 return
             job["status"] = "failed"
             job["progress"] = 1.0
@@ -65,6 +99,7 @@ def create_analysis_job(payload):
         "message": "ECG analysis job queued.",
         "result": None,
         "error": None,
+        "cancelRequested": False,
         "createdAt": submitted_at,
         "updatedAt": submitted_at,
         "completedAt": None,
@@ -82,4 +117,24 @@ def get_job(job_id):
         job = _JOBS.get(job_id)
         if not job:
             return None
+        return _clone_job(job)
+
+
+def cancel_job(job_id):
+    with _JOBS_LOCK:
+        job = _JOBS.get(job_id)
+        if not job:
+            return None
+        if job["status"] in {"completed", "failed", "cancelled"}:
+            return _clone_job(job)
+        job["cancelRequested"] = True
+        if job["status"] == "queued":
+            job["status"] = "cancelled"
+            job["progress"] = 1.0
+            job["message"] = "ECG analysis cancelled."
+            job["updatedAt"] = _timestamp()
+            job["completedAt"] = _timestamp()
+        else:
+            job["message"] = "Cancelling ECG analysis..."
+            job["updatedAt"] = _timestamp()
         return _clone_job(job)

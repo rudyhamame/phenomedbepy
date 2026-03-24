@@ -9,6 +9,9 @@ It starts as the home for ECG digitization, but the structure is meant to grow i
 - `GET /health`
 - `GET /api/ecg/health`
 - `POST /api/ecg/analyze`
+- `POST /api/ecg/jobs`
+
+`POST /api/ecg/analyze` and `POST /api/ecg/jobs` are now digital-trace only. Send device ECG traces using `digitalTraces`, `leadTraces`, `traces`, or `leads` in the JSON body.
 
 ## Local run
 
